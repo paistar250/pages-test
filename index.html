@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>Cloudflare → GitHub Pages 连通性测试</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; color: #e2e8f0; background: radial-gradient(circle at 15% 15%, #1e3a5f, transparent 36%), #0f172a; }
+    main { width: min(100%, 680px); padding: clamp(24px, 5vw, 48px); border: 1px solid #334155; border-radius: 22px; background: #172235; box-shadow: 0 24px 60px #02061766; }
+    .eyebrow { margin: 0 0 14px; color: #7dd3fc; font-size: .82rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.65rem); line-height: 1.2; }
+    .intro { margin: 18px 0 28px; color: #cbd5e1; line-height: 1.7; }
+    .badge { display: inline-flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 999px; color: #bbf7d0; background: #14532d; font-weight: 650; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; }
+    dl { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 15px 10px; margin: 32px 0; padding: 22px 0; border-top: 1px solid #334155; border-bottom: 1px solid #334155; }
+    dt { color: #94a3b8; }
+    dd { margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    button { padding: 12px 18px; border: 0; border-radius: 10px; color: #082f49; background: #7dd3fc; font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { background: #bae6fd; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #result { min-height: 1.7em; margin: 16px 0 0; color: #cbd5e1; line-height: 1.6; overflow-wrap: anywhere; }
+    footer { margin-top: 30px; color: #94a3b8; font-size: .88rem; line-height: 1.6; }
+    @media (max-width: 480px) { dl { grid-template-columns: 1fr; gap: 5px; } dd { margin-bottom: 12px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Static site connectivity test</p>
+    <h1>Cloudflare → GitHub Pages</h1>
+    <p class="intro">如果你能通过自定义域名看到这个页面，静态页面已经成功送达浏览器。点击下面的按钮，可以再发起一次请求检查当前地址。</p>
+    <div class="badge"><span class="dot" aria-hidden="true"></span>页面已加载</div>
+    <dl>
+      <dt>当前网址</dt><dd id="url"></dd>
+      <dt>页面加载时间</dt><dd id="loaded"></dd>
+      <dt>页面版本</dt><dd>test-v1</dd>
+    </dl>
+    <button id="check" type="button">再次检测</button>
+    <p id="result" role="status" aria-live="polite">等待检测。</p>
+    <footer>此页面只有一个 HTML 文件，不依赖第三方脚本、字体或接口。检测结果反映浏览器到当前域名的请求；Cloudflare 响应头仅在可读取时显示。</footer>
+  </main>
+  <script>
+    const url = document.getElementById('url');
+    const loaded = document.getElementById('loaded');
+    const button = document.getElementById('check');
+    const result = document.getElementById('result');
+    url.textContent = location.href;
+    loaded.textContent = new Date().toLocaleString('zh-CN', { hour12: false });
+
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      result.textContent = '正在请求当前页面…';
+      const probe = new URL(location.pathname, location.origin);
+      probe.searchParams.set('_probe', Date.now().toString());
+      const started = performance.now();
+      try {
+        const response = await fetch(probe, { cache: 'no-store' });
+        const elapsed = Math.round(performance.now() - started);
+        const ray = response.headers.get('cf-ray');
+        const cache = response.headers.get('cf-cache-status');
+        const details = [ray && `CF-Ray: ${ray}`, cache && `CF-Cache-Status: ${cache}`].filter(Boolean);
+        result.textContent = `HTTP ${response.status} · ${elapsed} ms${details.length ? ' · ' + details.join(' · ') : ''}`;
+      } catch (error) {
+        result.textContent = `请求失败：${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
